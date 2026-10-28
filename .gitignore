@@ -1,0 +1,28 @@
+.venv/
+__pycache__/
+*.py[cod]
+tickets.db
+tickets.db-journal
+tickets.db-wal
+tickets.db-shm
+approval_checkpoints.sqlite
+approval_checkpoints.sqlite-journal
+approval_checkpoints.sqlite-wal
+approval_checkpoints.sqlite-shm
+eval_results.json
+
+# Local databases, checkpoints, and their sidecar files
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
+
+# Local secrets and generated evaluation output
+.env
+.env.*
+!.env.example
+eval_retrieval_results.json

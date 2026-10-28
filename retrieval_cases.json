@@ -1,0 +1,22 @@
+[
+  {
+    "question": "用户一直登录失败，该怎么排查？",
+    "expected_doc_id": "KB-LOGIN-001"
+  },
+  {
+    "question": "已经扣款，但订单还显示未支付怎么办？",
+    "expected_doc_id": "KB-PAYMENT-001"
+  },
+  {
+    "question": "待处理工单能直接变成已完成吗？",
+    "expected_doc_id": "KB-STATUS-001"
+  },
+  {
+    "question": "公司今年年假可以休几天？",
+    "expected_doc_id": null
+  },
+  {
+    "question": "sso",
+    "expected_doc_id": "KB-LOGIN-001"
+    }
+]

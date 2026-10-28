@@ -1,0 +1,39 @@
+[
+  {
+    "id": "existing_ticket",
+    "question": "查询 T103 的状态和负责人",
+    "expected_tool": "get_ticket",
+    "expected_ticket_id": "T103",
+    "expected_error": null,
+    "expected_answer_fields": ["ticket_id", "status", "owner"]
+  },
+  {
+    "id": "missing_ticket",
+    "question": "查询 NOT_EXIST_001 的状态",
+    "expected_tool": "get_ticket",
+    "expected_ticket_id": "NOT_EXIST_001",
+    "expected_error": "TICKET_NOT_FOUND"
+  },
+  {
+    "id": "missing_id",
+    "question": "帮我查询工单",
+    "expected_tool": null,
+    "expected_ticket_id": null,
+    "expected_error": null
+  },
+  {
+    "id": "indirect_query",
+    "question": "T103 现在归谁负责？进展到哪一步了？",
+    "expected_tool": "get_ticket",
+    "expected_ticket_id": "T103",
+    "expected_error": null,
+    "expected_answer_fields": ["ticket_id", "status", "owner"]
+  },
+  {
+    "id": "missing_id_with_urgency",
+    "question": "急，帮我看看那个一直没解决的工单！",
+    "expected_tool": null,
+    "expected_ticket_id": null,
+    "expected_error": null
+  }
+]
