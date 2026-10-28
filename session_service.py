@@ -50,6 +50,7 @@ def chat_session(session_id: str, question: str) -> dict:
             "session_id": session_id,
             "version": session["version"] + 1,
             "answer": result["answer"],
+            "sources": result.get("sources", []),
             "tool_results": result["tool_results"],
             "actions": result["pending_actions"],
         },

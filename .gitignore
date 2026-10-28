@@ -26,3 +26,4 @@ eval_results.json
 .env.*
 !.env.example
 eval_retrieval_results.json
+eval_rag_results.json

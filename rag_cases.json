@@ -1,0 +1,17 @@
+[
+  {
+    "id": "login_guide",
+    "question": "用户一直登录失败，应该收集哪些信息并怎么排查？",
+    "expected_source_ids": ["KB-LOGIN-001"]
+  },
+  {
+    "id": "status_rule",
+    "question": "待处理工单能直接变成已完成吗？请按知识库规则说明。",
+    "expected_source_ids": ["KB-STATUS-001"]
+  },
+  {
+    "id": "unknown_policy",
+    "question": "请查知识库，公司今年年假可以休几天？",
+    "expected_source_ids": []
+  }
+]

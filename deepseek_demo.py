@@ -39,6 +39,27 @@ TOOL_SCHEMAS = [
                 "additionalProperties": False,
             },
         },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "search_knowledge",
+            "description": (
+                "检索项目模拟知识库中的故障排查规范和工单流转规则。"
+                "查询具体工单当前状态时使用 get_ticket。"
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "question": {
+                        "type": "string",
+                        "description": "需要检索的规范问题",
+                    }
+                },
+                "required": ["question"],
+                "additionalProperties": False,
+            },
+        },
     }
 ]
 PROPOSE_TOOL_SCHEMA = {
@@ -82,7 +103,7 @@ def send_messages(
         "tools": tools,
         "tool_choice": "auto" if allow_tools else "none",
         "thinking": {"type": "disabled"},
-        "max_tokens": 500,
+        "max_tokens": 1200,
         "stream": False,
     }
 
@@ -99,7 +120,15 @@ def send_messages(
     with urlopen(request, timeout=60) as response:
         result = json.load(response)
 
-    return result["choices"][0]["message"]
+    choice = result["choices"][0]
+
+    if choice.get("finish_reason") == "length":
+        raise AgentResponseError(
+            "MODEL_OUTPUT_TRUNCATED",
+            "模型输出达到长度上限，本轮未提交",
+        )
+
+    return choice["message"]
 
 def run_query(
         question: str,
@@ -120,6 +149,7 @@ def run_query(
                 "可以提出工单状态变更建议，但工具成功仅表示等待用户确认，"
                 "不代表工单已修改。展示建议编号、原状态和目标状态，"
                 "提示用户通过独立的确认或拒绝操作处理。"
+                "优先回答用户问题，简要概括，不整篇复述检索文档。"
             ),
         })    
     messages.append({

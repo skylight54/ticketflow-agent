@@ -290,6 +290,8 @@ class AgentGraphIntegrationTests(unittest.TestCase):
         self.assertEqual(result["tool_results"][0]["name"], "get_ticket")
         self.assertTrue(result["tool_results"][0]["result"]["ok"])
         self.assertEqual(result["pending_actions"], [])
+        # 纯工单查询没有检索，也就没有来源
+        self.assertEqual(result["sources"], [])
 
         # 第二轮发给模型的消息里带上了工具结果
         self.assertEqual(snapshots[1][-1]["role"], "tool")
@@ -362,6 +364,62 @@ class AgentGraphIntegrationTests(unittest.TestCase):
         self.assertEqual(
             propose_result["data"]["action_id"],
             action["action_id"],
+        )
+    def test_followup_retrieves_again(self):
+        replies = [
+            tool_message(
+                "search_knowledge",
+                {"question": "登录失败排查"},
+                "search_turn_1",
+            ),
+            {
+                "role": "assistant",
+                "content": "按项目模拟规范排查登录问题 [KB-LOGIN-001]。",
+            },
+            tool_message(
+                "search_knowledge",
+                {"question": "登录失败排查步骤"},
+                "search_turn_2",
+            ),
+            {
+                "role": "assistant",
+                # 故意引用两次，验证 sources 去重
+                "content": (
+                    "简化为三步，依据项目模拟规范 [KB-LOGIN-001]；"
+                    "完整流程仍见 [KB-LOGIN-001]。"
+                ),
+            },
+        ]
+
+        with patch("agent_graph.send_messages", side_effect=replies):
+            first = run_graph_query("登录失败怎么排查？")
+
+            second = run_graph_query(
+                "把刚才的步骤简化一下。",
+                history=first["messages"],
+            )
+
+        self.assertEqual(len(second["tool_results"]), 1)
+        self.assertEqual(
+            second["tool_results"][0]["name"],
+            "search_knowledge",
+        )
+        self.assertIn("[KB-LOGIN-001]", second["answer"])
+        self.assertEqual(second["pending_actions"], [])
+
+        # 第二轮 sources 包含被引用的登录文档，来源信息取自工具结果
+        self.assertEqual(
+            second["sources"],
+            [{
+                "doc_id": "KB-LOGIN-001",
+                "title": "无法登录处理规范",
+                "source": "login.md",
+            }],
+        )
+        # 同一文档引用两次也只返回一条
+        self.assertEqual(
+            len(second["sources"]),
+            len({item["doc_id"] for item in second["sources"]}),
         )
 
 
