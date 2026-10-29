@@ -372,12 +372,43 @@ python -m uvicorn app:app --reload
 
 `--reload` 仅用于开发环境，生产环境请去掉该参数。当前审批锁是进程内的，建议以单 worker 模式运行。
 
-### 6. 接口文档
+### 6. 演示完整审批流程
+
+服务启动后，另开一个终端执行：
+
+```powershell
+.\.venv\Scripts\python.exe demo_workflow.py --base-url http://127.0.0.1:8001
+```
+
+`--base-url` 默认是 `http://127.0.0.1:8000`，请指向实际运行的服务。脚本每次用 `uuid4().hex[:8]` 生成新的工单编号，依次验证：
+
+1. 创建工单，检查 `201` 和初始状态 `待处理`；
+2. 创建会话，取得 `session_id`；
+3. 手动创建“待处理 → 处理中”建议（不调用模型），检查建议为 `pending`；
+4. 发起审批，检查返回 `waiting`；
+5. 查询工单，检查仍为 `待处理`；
+6. 恢复审批（`approved: true`），检查建议为 `executed`；
+7. 查询工单，检查已变为 `处理中`；
+8. 再次恢复，检查返回 `409 APPROVAL_NOT_WAITING`。
+
+每一步都检查状态码和关键字段，通过时打印 `[PASS]`，例如：
+
+```text
+[PASS] 创建工单 DEMO-b95a654b
+[PASS] 发起审批，等待确认
+[PASS] 确认前工单未修改
+[PASS] 确认后工单已更新
+[PASS] 重复恢复被拒绝（409 APPROVAL_NOT_WAITING）
+```
+
+任何一步不符合预期，脚本会打印该步的状态码和完整响应，并以非零退出码结束，不会在未校验的情况下输出 `PASS`。脚本不调用模型、不需要 `DEEPSEEK_API_KEY`，但会在目标服务中留下一条 `DEMO-xxxxxxxx` 演示工单；当前没有删除接口，演示数据会保留。该脚本覆盖的是确定性的业务与审批流程，RAG 回答和真实模型表现仍由第五节评测脚本验证。
+
+### 7. 接口文档
 
 - Swagger UI：<http://127.0.0.1:8000/docs>
 - OpenAPI JSON：<http://127.0.0.1:8000/openapi.json>
 
-### 7. 运行测试
+### 8. 运行测试
 
 ```bash
 python -m unittest -v
@@ -385,11 +416,11 @@ python -m unittest -v
 
 测试使用临时数据库和临时检查点文件，不会修改 `tickets.db` 或 `approval_checkpoints.sqlite`；模型调用、上游响应和检查点恢复使用 mock 或子进程隔离，不需要真实 API key，也不产生模型费用。
 
-### 8. 停止服务
+### 9. 停止服务
 
 在启动服务的终端中按 `Ctrl+C`。
 
-### 9. Docker Compose 启动（推荐演示方式）
+### 10. Docker Compose 启动（推荐演示方式）
 
 前提：Docker Desktop 的 Linux 引擎或 Linux Docker Engine 正常运行，且 `docker compose version` 可用。在仓库根目录执行：
 
@@ -413,7 +444,7 @@ Compose 固定使用单 worker，端口只绑定本机；容器数据目录为 `
 
 若之前通过 `docker run` 启动了 `ticketflow-agent-dev`，先停止并删除这个旧容器，释放 8001 端口，再启动 Compose。不要删除数据卷。镜像构建成功不代表服务已启动，以 `docker compose ps` 的状态和 HTTP 检查结果为准。
 
-### 10. 数据持久化与审批恢复演示
+### 11. 数据持久化与审批恢复演示
 
 1. 在 8001 的 Swagger UI 创建新工单、会话和状态变更建议；保存返回的 `session_id` 和 `action_id`。
 2. 调用 `/approval/start`，确认返回 `waiting`，工单仍处于原状态。
@@ -421,9 +452,9 @@ Compose 固定使用单 worker，端口只绑定本机；容器数据目录为 `
 4. 用原 ID 调用 `/approval/resume`，请求体为 `{"approved": true}`。
 5. 检查建议为 `executed`，并通过查询接口验证工单状态改变；再次恢复应返回 `APPROVAL_NOT_WAITING`。
 
-该演示不需要模型密钥，可以通过 `/sessions/{session_id}/actions` 手动创建建议。用户已完成同卷删除、重建容器后的审批恢复验证；持久化依赖业务库与检查点库都保存在同一个卷中。数据卷不能替代备份，丢失卷仍会丢失运行数据。
+该演示不需要模型密钥，可以通过 `/sessions/{session_id}/actions` 手动创建建议。其中不涉及容器重启的部分（创建工单、建议、发起审批到确认执行）可以直接用 `demo_workflow.py --base-url http://127.0.0.1:8001` 自动跑完；重启后的恢复仍需按上述步骤手工验证。用户已完成同卷删除、重建容器后的审批恢复验证；持久化依赖业务库与检查点库都保存在同一个卷中。数据卷不能替代备份，丢失卷仍会丢失运行数据。
 
-### 11. 请求日志与 CI
+### 12. 请求日志与 CI
 
 每个请求由中间件生成 `X-Request-ID`，日志记录方法、路径、状态码和耗时。会话日志使用相同编号关联开始、业务结果或模型异常类别。未捕获异常返回 `500 INTERNAL_ERROR`，正文包含请求编号，详细异常留在服务日志中。`/health` 只检查 HTTP 存活，不验证模型可用性或数据库读写能力。
 
@@ -556,6 +587,7 @@ python eval_rag.py
 | `checkpoint_demo.py` | 审批暂停/恢复的最小示例，支持跨进程恢复 |
 | `graph_demo.py` | LangGraph 条件边示例 |
 | `reducer_demo.py` | LangGraph 状态覆盖与 `Annotated` 累加示例 |
+| `demo_workflow.py` | 端到端演示脚本：创建工单和建议，走审批暂停/恢复并逐项校验 |
 | `eval_agent.py` | Agent 任务评测脚本（需要 API key） |
 | `eval_cases.json` | Agent 评测用例定义 |
 | `eval_results.json` | Agent 评测输出（运行时生成，已忽略） |
