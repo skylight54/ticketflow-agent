@@ -1,9 +1,11 @@
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
+import app as app_module
 import db
 from app import app
 
@@ -16,10 +18,18 @@ class TicketAPITests(unittest.TestCase):
         )
         db.DB_PATH = Path(self.temp_dir.name) / "test.db"
         db.init_db()
+        # lifespan 会打开检查点库，同样指向临时目录，避免写进真实数据目录
+        self.checkpoint_patch = patch.object(
+            app_module,
+            "CHECKPOINT_DB_PATH",
+            Path(self.temp_dir.name) / "checkpoints.sqlite",
+        )
+        self.checkpoint_patch.start()
         self.client = TestClient(app)
 
     def tearDown(self):
         self.client.close()
+        self.checkpoint_patch.stop()
         db.DB_PATH = self.original_db_path
         self.temp_dir.cleanup()
 

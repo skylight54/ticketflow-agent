@@ -22,15 +22,13 @@ from action_service import (
     confirm_proposed_action,
     reject_proposed_action
 )
+from config import DATA_DIR
 
-
-CHECKPOINT_DB_PATH = (
-    Path(__file__).resolve().parent / "approval_checkpoints.sqlite"
-)
-
+CHECKPOINT_DB_PATH = DATA_DIR / "approval_checkpoints.sqlite"
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    CHECKPOINT_DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     init_db()
 
     with SqliteSaver.from_conn_string(str(CHECKPOINT_DB_PATH)) as saver:
@@ -45,6 +43,17 @@ logging.basicConfig(
 logger = logging.getLogger("tickets.api")
 
 app = FastAPI(lifespan=lifespan)
+
+@app.get("/health")
+def health():
+    return {
+        "ok": True,
+        "data": {
+            "service": "ticketflow-agent",
+            "status": "alive",
+        },
+        "error": None,
+    }
 
 @app.middleware("http")
 async def log_request(request: Request, call_next):

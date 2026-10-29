@@ -10,6 +10,7 @@ from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
+import app as app_module
 import db
 import agent_graph as agent
 from app import app
@@ -60,10 +61,18 @@ class QueryLoopTests(DBTestCase):
         self.directory = tempfile.TemporaryDirectory(dir=Path(__file__).resolve().parent)
         db.DB_PATH = Path(self.directory.name) / "test.db"
         db.init_db()
+        # 检查点库也指向临时目录，避免写进真实数据目录
+        self.checkpoint_patch = patch.object(
+            app_module,
+            "CHECKPOINT_DB_PATH",
+            Path(self.directory.name) / "checkpoints.sqlite",
+        )
+        self.checkpoint_patch.start()
         self.sid = db.create_session()
         db.InsertTicket("T109", "待处理", "技术支持", "无法登录")
 
     def tearDown(self):
+        self.checkpoint_patch.stop()
         db.DB_PATH = self.original_path
         self.directory.cleanup()
 
@@ -229,6 +238,20 @@ class QueryLoopTests(DBTestCase):
 
 
 class QueryLoopAPITests(DBTestCase):
+    def setUp(self):
+        # 这些用例会启动 lifespan，检查点库要落在临时目录
+        self.directory = tempfile.TemporaryDirectory(
+            dir=Path(__file__).resolve().parent
+        )
+        self.addCleanup(self.directory.cleanup)
+        checkpoint_patch = patch.object(
+            app_module,
+            "CHECKPOINT_DB_PATH",
+            Path(self.directory.name) / "checkpoints.sqlite",
+        )
+        checkpoint_patch.start()
+        self.addCleanup(checkpoint_patch.stop)
+
     def test_startup_creates_missing_tables_and_preserves_old_data(self):
         with tempfile.TemporaryDirectory(dir=Path(__file__).resolve().parent) as directory:
             path = Path(directory) / "old.db"

@@ -1,12 +1,30 @@
 import os
+import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 from fastapi.testclient import TestClient
+
+import app as app_module
 from app import app
 
 
 class AssistantAPITests(unittest.TestCase):
+    def setUp(self):
+        # 启动 lifespan 时会创建检查点库，指向临时目录避免污染真实数据目录
+        self.directory = tempfile.TemporaryDirectory(
+            dir=Path(__file__).resolve().parent
+        )
+        self.addCleanup(self.directory.cleanup)
+        checkpoint_patch = patch.object(
+            app_module,
+            "CHECKPOINT_DB_PATH",
+            Path(self.directory.name) / "checkpoints.sqlite",
+        )
+        checkpoint_patch.start()
+        self.addCleanup(checkpoint_patch.stop)
+
     def test_success_calls_query_once(self):
         result = {
             "answer": "请提供工单编号。",

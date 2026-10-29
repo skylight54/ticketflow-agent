@@ -33,3 +33,30 @@ jobs:
 
       - name: Run tests
         run: python -m unittest discover -s . -p "test_*.py" -v
+  docker-smoke:
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Prepare local configuration
+        run: |
+          cp .env.example .env
+          docker volume create ticketflow-data
+
+      - name: Build and start service
+        run: docker compose up -d --build --wait --wait-timeout 60
+
+      - name: Check HTTP endpoint
+        run: curl --fail --max-time 10 http://127.0.0.1:8001/health
+
+      - name: Show container logs
+        if: always()
+        run: docker compose logs --no-color --tail 100
+
+      - name: Stop service
+        if: always()
+        run: docker compose down

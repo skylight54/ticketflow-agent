@@ -5,6 +5,11 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 from copy import deepcopy
 from tool_runner import execute_tool, tool_error
+from config import (
+    MODEL_MAX_TOKENS,
+    MODEL_NAME,
+    MODEL_TIMEOUT_SECONDS,
+)
 
 MAX_MODEL_ROUNDS = 4
 MAX_TOOL_CALLS = 8
@@ -98,12 +103,12 @@ def send_messages(
         tools.append(PROPOSE_TOOL_SCHEMA)
 
     payload = {
-        "model": "deepseek-flash",
+        "model": MODEL_NAME,
         "messages": messages,
         "tools": tools,
         "tool_choice": "auto" if allow_tools else "none",
         "thinking": {"type": "disabled"},
-        "max_tokens": 1200,
+        "max_tokens": MODEL_MAX_TOKENS,
         "stream": False,
     }
 
@@ -117,7 +122,7 @@ def send_messages(
         method="POST",
     )
 
-    with urlopen(request, timeout=60) as response:
+    with urlopen(request, timeout=MODEL_TIMEOUT_SECONDS) as response:
         result = json.load(response)
 
     choice = result["choices"][0]

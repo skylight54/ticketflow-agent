@@ -4,6 +4,7 @@ import unittest
 from io import BytesIO
 from unittest.mock import patch
 
+from config import MODEL_MAX_TOKENS, MODEL_NAME, MODEL_TIMEOUT_SECONDS
 from deepseek_demo import AgentResponseError, send_messages
 
 
@@ -96,7 +97,7 @@ class ModelResponseTests(unittest.TestCase):
 
         self.assertEqual(result, message)
 
-    def test_request_sets_timeout_and_tool_choice(self):
+    def test_request_uses_config_and_tools(self):
         _, urlopen = self.send(make_payload())
 
         request = urlopen.call_args.args[0]
@@ -104,9 +105,15 @@ class ModelResponseTests(unittest.TestCase):
             request.full_url,
             "https://api.deepseek.com/chat/completions",
         )
-        self.assertEqual(urlopen.call_args.kwargs["timeout"], 60)
+        # 模型名、超时和输出上限都来自 config.py
+        self.assertEqual(
+            urlopen.call_args.kwargs["timeout"],
+            MODEL_TIMEOUT_SECONDS,
+        )
 
         payload = json.loads(request.data)
+        self.assertEqual(payload["model"], MODEL_NAME)
+        self.assertEqual(payload["max_tokens"], MODEL_MAX_TOKENS)
         self.assertEqual(payload["tool_choice"], "auto")
         self.assertTrue(payload["tools"])
 

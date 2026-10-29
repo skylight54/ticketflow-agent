@@ -1,12 +1,12 @@
 import sqlite3
-from pathlib import Path
 from uuid import uuid4
 import json
+from config import DATA_DIR
 
-DB_PATH = Path(__file__).resolve().parent / "tickets.db"
-
+DB_PATH = DATA_DIR / "tickets.db"
 
 def init_db():
+    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
 
     try:

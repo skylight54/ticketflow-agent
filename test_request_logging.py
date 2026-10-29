@@ -2,6 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
+import os
 
 from fastapi.testclient import TestClient
 
@@ -65,6 +66,16 @@ class RequestLoggingTests(unittest.TestCase):
         # 异常写入日志，方便按 request_id 排查
         self.assertIn("request_failed", logs.output[0])
 
+    def test_health_without_model_key(self):
+        with patch.dict(os.environ, {"DEEPSEEK_API_KEY": ""}):
+            with TestClient(app_module.app) as client:
+                response = client.get("/health")
 
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json()["data"],
+            {"service": "ticketflow-agent", "status": "alive"},
+        )
+        self.assertTrue(response.headers.get("X-Request-ID"))
 if __name__ == "__main__":
     unittest.main()
