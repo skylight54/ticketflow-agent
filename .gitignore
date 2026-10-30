@@ -27,3 +27,11 @@ eval_results.json
 !.env.example
 eval_retrieval_results.json
 eval_rag_results.json
+challenge_baseline.json
+challenge_expanded.json
+holdout_baseline.json
+holdout_expanded.json
+.venv-retrieval/
+# Evaluation reports are generated locally; cases remain versioned.
+/evaluations/results/
+/.planning/

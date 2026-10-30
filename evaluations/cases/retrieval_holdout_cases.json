@@ -1,0 +1,25 @@
+[
+  {
+    "question": "输完口令后始终进不了系统，应该先检查什么？",
+    "expected_doc_id": "KB-LOGIN-001",
+    "expected_chunk_ids": [
+      "KB-LOGIN-001:1",
+      "KB-LOGIN-001:2"
+    ]
+  },
+  {
+    "question": "账单有交易记录，购买页面却一直让我再付一次，怎么办？",
+    "expected_doc_id": "KB-PAYMENT-001",
+    "expected_chunk_ids": ["KB-PAYMENT-001:2", "KB-PAYMENT-001:3"]
+  },
+  {
+    "question": "工单已经完成了，能回到待处理继续跟进吗？",
+    "expected_doc_id": "KB-STATUS-001",
+    "expected_chunk_ids":["KB-STATUS-001:2"]
+  },
+  {
+    "question": "你们的 SSO 服务一年多少钱？",
+    "expected_doc_id": null,
+    "expected_chunk_ids": []
+  }
+]

@@ -9,8 +9,10 @@ import db
 from agent_graph import run_graph_query as run_query
 
 BASE_DIR = Path(__file__).resolve().parent
-CASES_PATH = BASE_DIR / "eval_cases.json"   
-RESULTS_PATH = BASE_DIR / "eval_results.json"
+CASES_DIR = BASE_DIR / "cases"
+RESULTS_DIR = BASE_DIR / "results"
+CASES_PATH = CASES_DIR / "eval_cases.json"
+RESULTS_PATH = RESULTS_DIR / "eval_results.json"
 
 @contextmanager
 def evaluation_database():
@@ -183,6 +185,7 @@ def main():
     with evaluation_database():
         results = evaluate_cases(cases)
     
+    RESULTS_PATH.parent.mkdir(parents=True, exist_ok=True)
     with RESULTS_PATH.open("w", encoding="utf-8") as f:
         json.dump(results, f, ensure_ascii=False, indent=2)
 

@@ -65,15 +65,38 @@ def match_document(question: str, document: dict) -> tuple[int, list[str]]:
 
     return score, matched
 
+QUERY_EXPANSIONS = {
+    "进不去": "登录",
+    "登不上": "登录",
+    "钱扣走": "扣款",
+    "付款成功": "支付",
+    "结单": "已完成",
+}
 
-def search_knowledge(question: str, top_k: int = 3) -> list[dict]:
+def expand_query(question: str) -> str:
+    normalized = question.strip().casefold()
+    additions = {
+        keyword
+        for phrase, keyword in QUERY_EXPANSIONS.items()
+        if phrase.casefold() in normalized
+    }
+
+    return " ".join([normalized, *sorted(additions)]).strip()
+
+def search_knowledge(
+    question: str,
+    top_k: int = 3,
+    *,
+    expand: bool = False,
+) -> list[dict]:
     """按关键词检索知识库，返回得分最高的前 top_k 篇；没有命中返回空列表。"""
     question = question.strip()
     if question == "":
         return []
     if top_k <= 0:
         raise ValueError("top_k 必须大于 0")
-
+    if expand:
+        question = expand_query(question)
     result = []
 
     for document in load_documents():

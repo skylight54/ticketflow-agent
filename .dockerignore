@@ -16,3 +16,9 @@ data
 eval_results.json
 eval_retrieval_results.json
 eval_rag_results.json
+.venv-retrieval/
+# Development-only tests, evaluation data and learning demos
+tests/
+evaluations/
+examples/
+.planning/

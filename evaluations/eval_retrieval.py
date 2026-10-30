@@ -1,11 +1,14 @@
 import json
 from pathlib import Path
+import argparse
 
 from knowledge_search import search_knowledge
 
 BASE_DIR = Path(__file__).resolve().parent
-CASES_PATH = BASE_DIR / "retrieval_cases.json"
-RESULTS_PATH = BASE_DIR / "eval_retrieval_results.json"
+CASES_DIR = BASE_DIR / "cases"
+RESULTS_DIR = BASE_DIR / "results"
+CASES_PATH = CASES_DIR / "retrieval_cases.json"
+RESULTS_PATH = RESULTS_DIR / "eval_retrieval_results.json"
 
 
 def score_retrieval_case(case: dict, hits: list[dict]) -> list[str]:
@@ -27,12 +30,16 @@ def score_retrieval_case(case: dict, hits: list[dict]) -> list[str]:
     return []
 
 
-def evaluate_cases(cases: list[dict]) -> list[dict]:
+def evaluate_cases(
+    cases: list[dict],
+    *,
+    expand: bool = False,
+) -> list[dict]:
     results = []
 
     for case in cases:
         question = case["question"]
-        hits = search_knowledge(question, top_k=1)
+        hits = search_knowledge(question, top_k=1, expand=expand)
         reasons = score_retrieval_case(case, hits)
         top = hits[0] if hits else None
 
@@ -63,13 +70,25 @@ def summarize_results(results: list[dict]) -> dict:
 
 
 def main():
-    with CASES_PATH.open("r", encoding="utf-8") as f:
+    parser = argparse.ArgumentParser(description="知识库检索评测")
+    parser.add_argument("--cases", type=Path, default=CASES_PATH)
+    parser.add_argument("--output", type=Path, default=RESULTS_PATH)
+    parser.add_argument("--expand", action="store_true")
+    args = parser.parse_args()
+
+    print(f"用例文件：{args.cases.resolve()}")
+    print(f"结果文件：{args.output.resolve()}")
+
+    with args.cases.open("r", encoding="utf-8") as f:
         cases = json.load(f)
+    print(f"查询扩展：{args.expand}")
+    results = evaluate_cases(cases, expand=args.expand)
 
-    results = evaluate_cases(cases)
-
-    with RESULTS_PATH.open("w", encoding="utf-8") as f:
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    with args.output.open("w", encoding="utf-8") as f:
         json.dump(results, f, ensure_ascii=False, indent=2)
+
+    # 后面的汇总和打印代码保持原样
 
     summary = summarize_results(results)
     print(f"通过 {summary['passed']}/{summary['total']}")

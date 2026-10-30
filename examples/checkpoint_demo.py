@@ -56,7 +56,7 @@ if __name__ == "__main__":
     parser.add_argument("--decision", choices=["y", "n"])
     parser.add_argument(
         "--db-path",
-        default=str(Path(__file__).resolve().parent / "checkpoints.sqlite"),
+        default=str(Path(__file__).resolve().parents[1] / "checkpoints.sqlite"),
     )
     args = parser.parse_args()
 

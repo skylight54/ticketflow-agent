@@ -1,0 +1,18 @@
+[
+  {
+    "question": "账号进不去了，一直卡在验证那一步",
+    "expected_doc_id": "KB-LOGIN-001"
+  },
+  {
+    "question": "钱扣走了，单子还没变成付款成功",
+    "expected_doc_id": "KB-PAYMENT-001"
+  },
+  {
+    "question": "刚提交的单子可以直接结单吗",
+    "expected_doc_id": "KB-STATUS-001"
+  },
+  {
+    "question": "我想请几天假，能批多少天",
+    "expected_doc_id": null
+  }
+]

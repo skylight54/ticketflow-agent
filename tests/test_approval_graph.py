@@ -7,6 +7,7 @@ from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.types import Command
 
 import db
+from action_service import confirm_proposed_action
 from approval_graph import ApprovalState, build_approval_graph
 
 
@@ -126,6 +127,32 @@ class ApprovalGraphTests(unittest.TestCase):
         self.assertIsNone(result["result"]["data"])
         self.assertEqual(self.load_action()["status"], "stale")
         self.assertEqual(self.load_ticket()["status"], "处理中")
+        self.assertEqual(graph.get_state(self.config).next, ())
+
+    def test_resume_after_direct_confirm_does_not_revert_ticket(self):
+        graph, _ = self.start()
+
+        # 模拟“业务库已提交，但图检查点仍停在 wait”：
+        # 不恢复图，直接走确认事务
+        confirmed = confirm_proposed_action(self.sid, self.action_id)
+        self.assertTrue(confirmed["ok"])
+        self.assertEqual(confirmed["data"]["status"], "executed")
+        self.assertEqual(self.load_action()["status"], "executed")
+        self.assertEqual(self.load_ticket()["status"], "处理中")
+        # 图确实还停在旧检查点
+        self.assertEqual(graph.get_state(self.config).next, ("wait",))
+
+        # 工单继续正常流转，离开建议里的目标状态
+        self.assertTrue(db.UpdateTicketStatus("T109", "处理中", "已完成"))
+        self.assertEqual(self.load_ticket()["status"], "已完成")
+
+        # 从旧检查点恢复：重复确认必须幂等，不能把工单改回处理中
+        result = graph.invoke(Command(resume=True), self.config)
+
+        self.assertTrue(result["result"]["ok"])
+        self.assertEqual(result["result"]["data"]["status"], "executed")
+        self.assertEqual(self.load_action()["status"], "executed")
+        self.assertEqual(self.load_ticket()["status"], "已完成")
         self.assertEqual(graph.get_state(self.config).next, ())
 
 

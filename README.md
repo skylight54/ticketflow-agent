@@ -377,7 +377,7 @@ python -m uvicorn app:app --reload
 服务启动后，另开一个终端执行：
 
 ```powershell
-.\.venv\Scripts\python.exe demo_workflow.py --base-url http://127.0.0.1:8001
+.\.venv\Scripts\python.exe -m examples.demo_workflow --base-url http://127.0.0.1:8001
 ```
 
 `--base-url` 默认是 `http://127.0.0.1:8000`，请指向实际运行的服务。脚本每次用 `uuid4().hex[:8]` 生成新的工单编号，依次验证：
@@ -411,7 +411,7 @@ python -m uvicorn app:app --reload
 ### 8. 运行测试
 
 ```bash
-python -m unittest -v
+python -m unittest discover -s tests -t . -v
 ```
 
 测试使用临时数据库和临时检查点文件，不会修改 `tickets.db` 或 `approval_checkpoints.sqlite`；模型调用、上游响应和检查点恢复使用 mock 或子进程隔离，不需要真实 API key，也不产生模型费用。
@@ -452,7 +452,7 @@ Compose 固定使用单 worker，端口只绑定本机；容器数据目录为 `
 4. 用原 ID 调用 `/approval/resume`，请求体为 `{"approved": true}`。
 5. 检查建议为 `executed`，并通过查询接口验证工单状态改变；再次恢复应返回 `APPROVAL_NOT_WAITING`。
 
-该演示不需要模型密钥，可以通过 `/sessions/{session_id}/actions` 手动创建建议。其中不涉及容器重启的部分（创建工单、建议、发起审批到确认执行）可以直接用 `demo_workflow.py --base-url http://127.0.0.1:8001` 自动跑完；重启后的恢复仍需按上述步骤手工验证。用户已完成同卷删除、重建容器后的审批恢复验证；持久化依赖业务库与检查点库都保存在同一个卷中。数据卷不能替代备份，丢失卷仍会丢失运行数据。
+该演示不需要模型密钥，可以通过 `/sessions/{session_id}/actions` 手动创建建议。其中不涉及容器重启的部分（创建工单、建议、发起审批到确认执行）可以直接用 `python -m examples.demo_workflow --base-url http://127.0.0.1:8001` 自动跑完；重启后的恢复仍需按上述步骤手工验证。用户已完成同卷删除、重建容器后的审批恢复验证；持久化依赖业务库与检查点库都保存在同一个卷中。数据卷不能替代备份，丢失卷仍会丢失运行数据。
 
 ### 12. 请求日志与 CI
 
@@ -460,7 +460,7 @@ Compose 固定使用单 worker，端口只绑定本机；容器数据目录为 `
 
 `.github/workflows/tests.yml` 在 push、PR 或手动触发时执行：
 
-1. `test`：Python 3.12 安装依赖并运行 `python -m unittest discover -s . -p "test_*.py" -v`。
+1. `test`：Python 3.12 安装依赖并运行 `python -m unittest discover -s tests -t . -p "test_*.py" -v`。
 2. `docker-smoke`：前一任务通过后，从 `.env.example` 创建空密钥配置与数据卷，构建镜像、等待健康检查并请求 `/health`；无论成功失败均尝试输出日志、停止服务。
 
 CI 不运行真实模型评测，也不需要真实模型密钥。Docker 冒烟测试验证镜像构建和 HTTP 启动，不等于完整业务或真实模型测试；以仓库 Actions 中对应提交的运行结果为准。
@@ -470,10 +470,10 @@ CI 不运行真实模型评测，也不需要真实模型密钥。Docker 冒烟�
 ### 1. Agent 任务评测
 
 ```bash
-python eval_agent.py
+python -m evaluations.eval_agent
 ```
 
-需要先设置 `DEEPSEEK_API_KEY`。脚本读取 `eval_cases.json`，逐条调用 Agent，结果写入 `eval_results.json`（已在 `.gitignore` 中忽略），并在终端打印每条用例的耗时、失败原因和汇总指标。
+需要先设置 `DEEPSEEK_API_KEY`。脚本读取 `evaluations/cases/eval_cases.json`，逐条调用 Agent，结果写入 `evaluations/results/eval_results.json`（已在 `.gitignore` 中忽略），并在终端打印每条用例的耗时、失败原因和汇总指标。
 
 当前共 5 条用例：
 
@@ -487,7 +487,7 @@ python eval_agent.py
 
 评测不读取业务库。`evaluation_database()` 会记录当前 `db.DB_PATH`，创建临时目录和 `eval.db` 并执行 `init_db()`，插入固定工单 T103（状态 `待处理`、负责人 `技术支持`、摘要 `用户无法登录`），结束后恢复路径并删除临时目录。因此评测不会修改 `tickets.db`，相同用例每次面对的数据一致。
 
-本次结果（取自 `eval_results.json`，保留 3 位小数）：
+本次结果（取自 `evaluations/results/eval_results.json`，保留 3 位小数）：
 
 | 指标 | 数值 |
 |---|---|
@@ -507,10 +507,10 @@ python eval_agent.py
 ### 2. 知识检索评测
 
 ```bash
-python eval_retrieval.py
+python -m evaluations.eval_retrieval
 ```
 
-不需要 API key，也不调用模型。脚本读取 `retrieval_cases.json`，逐条调用 `search_knowledge(question, top_k=1)`，结果写入 `eval_retrieval_results.json`（已忽略）。
+不需要 API key，也不调用模型。脚本读取 `evaluations/cases/retrieval_cases.json`，逐条调用 `search_knowledge(question, top_k=1)`，结果写入 `evaluations/results/eval_retrieval_results.json`（已忽略）。
 
 判定只看**第一条结果**：`expected_doc_id` 为 `null` 的用例要求返回空；否则第一条的文档编号必须与预期相同。只取 top-1 是为了避免“把三篇都返回也算通过”，让评测真正衡量排序质量。
 
@@ -527,10 +527,10 @@ python eval_retrieval.py
 ### 3. RAG 回答评测
 
 ```bash
-python eval_rag.py
+python -m evaluations.eval_rag
 ```
 
-需要 `DEEPSEEK_API_KEY`。脚本读取 `rag_cases.json`，在独立评测库中逐条调用 `run_graph_query()`（不传历史），记录回答、来源、工具记录和耗时，结果写入 `eval_rag_results.json`（已忽略），并打印逐条结果与汇总。用例来自知识库已经覆盖的三个场景，例如登录排查、状态规则和知识库之外的“年假天数”。
+需要 `DEEPSEEK_API_KEY`。脚本读取 `evaluations/cases/rag_cases.json`，在独立评测库中逐条调用 `run_graph_query()`（不传历史），记录回答、来源、工具记录和耗时，结果写入 `evaluations/results/eval_rag_results.json`（已忽略），并打印逐条结果与汇总。用例来自知识库已经覆盖的三个场景，例如登录排查、状态规则和知识库之外的“年假天数”。
 
 `score_rag_case()` 检查五项：
 
@@ -544,7 +544,7 @@ python eval_rag.py
 
 注意：`expected_source_ids` 为空的用例只能证明回答没有标注来源，**不能证明模型没有编造内容**。例如年假问题，模型可能编出天数却不标来源，评分仍会通过。运行后必须人工检查这类用例的 `answer`，确认它明确说明“知识库暂无依据”。
 
-本次结果（取自 `eval_rag_results.json`，保留 3 位小数）：
+本次结果（取自 `evaluations/results/eval_rag_results.json`，保留 3 位小数）：
 
 | 用例 | 结果 | 来源 | 说明 |
 |---|---|---|---|
@@ -563,6 +563,49 @@ python eval_rag.py
 - 耗时受模型响应和网络波动影响，重复运行不会完全一致。
 
 ## 六、项目文件
+
+```text
+ticketflow-agent/
+├── app.py                    # HTTP 服务入口
+├── *_service.py              # 业务服务
+├── agent_graph.py / approval_graph.py
+├── db.py / config.py / ticket.py
+├── deepseek_demo.py          # 运行时模型调用模块，业务代码仍使用它
+├── knowledge_search.py / knowledge_chunks.py / citation_guard.py
+├── knowledge/               # 规范原文
+├── tests/                   # 自动化测试（test_*.py）
+├── evaluations/             # 评测脚本
+│   ├── cases/               # 人工标注的 JSON 用例，纳入版本控制
+│   └── results/             # 本地评测输出，不提交
+├── examples/                # 学习实验与端到端演示
+└── .github/workflows/       # CI
+```
+
+以下命令均在项目根目录运行。子目录是 Python 包，使用 `-m` 启动，无需手动修改 `sys.path` 或设置 `PYTHONPATH`：
+
+```bash
+# 全部自动化测试；测试使用临时数据库和模型桩，不调用真实模型
+python -m unittest discover -s tests -t . -v
+# 单个测试模块
+python -m unittest tests.test_approval_graph -v
+# 关键词检索评测（不需要模型）
+python -m evaluations.eval_retrieval
+# 指定用例和输出；相对路径以当前工作目录为基准
+python -m evaluations.eval_retrieval --cases evaluations/cases/retrieval_challenge_cases.json --output evaluations/results/challenge_expanded.json --expand
+# 学习示例
+python -m examples.reducer_demo
+python -m examples.demo_workflow --base-url http://127.0.0.1:8001
+```
+
+向量检索仍是独立实验，需要 `.venv-retrieval` 环境中的 `sentence-transformers` 和本地模型缓存；尚未接入 HTTP 服务，也不加入生产镜像：
+
+```powershell
+.\.venv-retrieval\Scripts\python.exe -m examples.check_chunk_tokens
+.\.venv-retrieval\Scripts\python.exe -m examples.embedding_search_demo
+.\.venv-retrieval\Scripts\python.exe -m evaluations.eval_embedding --offline --rerank --output evaluations/results/embedding_reranked.json
+```
+
+评测默认从 `evaluations/cases/` 读取用例，向 `evaluations/results/` 写入结果，输出目录会自动创建。`evaluations.eval_agent` 和 `evaluations.eval_rag` 仍需要真实模型密钥。原有本地报告已移入结果目录，业务数据库、检查点和环境配置的位置不受本次整理影响。
 
 | 文件 | 职责 |
 |---|---|
@@ -584,34 +627,37 @@ python eval_rag.py
 | `citation_guard.py` | 引用校验与 `sources` 生成 |
 | `knowledge/` | 三份模拟规范文档（登录、支付、工单状态） |
 | `db.py` | SQLite 建表与存取、会话版本更新、建议事务 |
-| `checkpoint_demo.py` | 审批暂停/恢复的最小示例，支持跨进程恢复 |
-| `graph_demo.py` | LangGraph 条件边示例 |
-| `reducer_demo.py` | LangGraph 状态覆盖与 `Annotated` 累加示例 |
-| `demo_workflow.py` | 端到端演示脚本：创建工单和建议，走审批暂停/恢复并逐项校验 |
-| `eval_agent.py` | Agent 任务评测脚本（需要 API key） |
-| `eval_cases.json` | Agent 评测用例定义 |
-| `eval_results.json` | Agent 评测输出（运行时生成，已忽略） |
-| `eval_retrieval.py` | 知识检索评测脚本（不需要 API key） |
-| `retrieval_cases.json` | 检索评测用例定义 |
-| `eval_retrieval_results.json` | 检索评测输出（运行时生成，已忽略） |
-| `eval_rag.py` | RAG 回答评测脚本（需要 API key） |
-| `rag_cases.json` | RAG 评测用例定义 |
-| `eval_rag_results.json` | RAG 评测输出（运行时生成，已忽略） |
-| `test_api.py` | 工单 HTTP 接口测试 |
-| `test_tickets.py` | 工单业务行为测试 |
-| `test_sessions.py` | 会话轮次保存、版本冲突测试 |
-| `test_agent.py` | 无状态 Agent 循环和工具协议测试 |
-| `test_agent_graph.py` | Agent 图节点、整图集成和多轮来源测试 |
-| `test_query_loop.py` | 会话问答循环和 HTTP 接口测试 |
-| `test_assistant_api.py` | `/assistant/query` 接口测试 |
-| `test_approval_graph.py` | 审批图节点、暂停、恢复和过期建议测试 |
-| `test_approval_service.py` | 审批服务各错误分支测试 |
-| `test_approval_api.py` | 审批 HTTP 接口和应用重启后恢复测试 |
-| `test_checkpoint.py` | 子进程级暂停/恢复与重复恢复测试 |
-| `test_citation_guard.py` | 引用校验和来源生成的固定数据测试 |
-| `test_model_response.py` | 上游响应解析（`finish_reason`、超时、请求参数）测试 |
-| `test_eval_agent.py` | 评测评分与汇总函数测试 |
-| `test_request_logging.py` | 请求编号、异常日志和 500 响应测试 |
+| `examples/checkpoint_demo.py` | 审批暂停/恢复的最小示例，支持跨进程恢复 |
+| `examples/graph_demo.py` | LangGraph 条件边示例 |
+| `examples/reducer_demo.py` | LangGraph 状态覆盖与 `Annotated` 累加示例 |
+| `examples/demo_workflow.py` | 端到端演示脚本：创建工单和建议，走审批暂停/恢复并逐项校验 |
+| `evaluations/eval_agent.py` | Agent 任务评测脚本（需要 API key） |
+| `evaluations/cases/eval_cases.json` | Agent 评测用例定义 |
+| `evaluations/results/eval_results.json` | Agent 评测输出（运行时生成，已忽略） |
+| `evaluations/eval_retrieval.py` | 知识检索评测脚本（不需要 API key） |
+| `evaluations/cases/retrieval_cases.json` | 检索评测用例定义 |
+| `evaluations/results/eval_retrieval_results.json` | 检索评测输出（运行时生成，已忽略） |
+| `evaluations/eval_rag.py` | RAG 回答评测脚本（需要 API key） |
+| `evaluations/eval_embedding.py` | 向量检索、可选重排序及文档/章节/候选命中评测 |
+| `examples/embedding_demo.py` / `examples/embedding_search_demo.py` / `examples/rerank_demo.py` | 向量编码、知识库检索和重排序学习实验 |
+| `examples/check_chunk_tokens.py` | 检查知识块是否超过向量模型的编码长度 |
+| `evaluations/cases/rag_cases.json` | RAG 评测用例定义 |
+| `evaluations/results/eval_rag_results.json` | RAG 评测输出（运行时生成，已忽略） |
+| `tests/test_api.py` | 工单 HTTP 接口测试 |
+| `tests/test_tickets.py` | 工单业务行为测试 |
+| `tests/test_sessions.py` | 会话轮次保存、版本冲突测试 |
+| `tests/test_agent.py` | 无状态 Agent 循环和工具协议测试 |
+| `tests/test_agent_graph.py` | Agent 图节点、整图集成和多轮来源测试 |
+| `tests/test_query_loop.py` | 会话问答循环和 HTTP 接口测试 |
+| `tests/test_assistant_api.py` | `/assistant/query` 接口测试 |
+| `tests/test_approval_graph.py` | 审批图节点、暂停、恢复和过期建议测试 |
+| `tests/test_approval_service.py` | 审批服务各错误分支测试 |
+| `tests/test_approval_api.py` | 审批 HTTP 接口和应用重启后恢复测试 |
+| `tests/test_checkpoint.py` | 子进程级暂停/恢复与重复恢复测试 |
+| `tests/test_citation_guard.py` | 引用校验和来源生成的固定数据测试 |
+| `tests/test_model_response.py` | 上游响应解析（`finish_reason`、超时、请求参数）测试 |
+| `tests/test_eval_agent.py` | 评测评分与汇总函数测试 |
+| `tests/test_request_logging.py` | 请求编号、异常日志和 500 响应测试 |
 | `requirements.txt` | 依赖清单 |
 
 ## 七、数据存储

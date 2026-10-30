@@ -7,8 +7,8 @@ from io import StringIO
 from pathlib import Path
 from unittest.mock import patch
 
-import eval_agent
-from eval_agent import score_case, summarize_results
+from evaluations import eval_agent
+from evaluations.eval_agent import score_case, summarize_results
 
 
 def make_case(**overrides):

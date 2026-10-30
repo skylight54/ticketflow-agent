@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 
 
-SCRIPT = Path(__file__).resolve().parent / "checkpoint_demo.py"
+SCRIPT = Path(__file__).resolve().parents[1] / "examples" / "checkpoint_demo.py"
 
 
 class CheckpointTests(unittest.TestCase):

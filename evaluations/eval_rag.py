@@ -4,11 +4,13 @@ from pathlib import Path
 from time import perf_counter
 
 from agent_graph import run_graph_query
-from eval_agent import evaluation_database, summarize_results
+from evaluations.eval_agent import evaluation_database, summarize_results
 
 BASE_DIR = Path(__file__).resolve().parent
-CASES_PATH = BASE_DIR / "rag_cases.json"
-RESULTS_PATH = BASE_DIR / "eval_rag_results.json"
+CASES_DIR = BASE_DIR / "cases"
+RESULTS_DIR = BASE_DIR / "results"
+CASES_PATH = CASES_DIR / "rag_cases.json"
+RESULTS_PATH = RESULTS_DIR / "eval_rag_results.json"
 
 
 def _source_ids(result: dict) -> set[str]:
@@ -123,6 +125,7 @@ def main():
     with evaluation_database():
         results = evaluate_cases(cases)
 
+    RESULTS_PATH.parent.mkdir(parents=True, exist_ok=True)
     with RESULTS_PATH.open("w", encoding="utf-8") as f:
         json.dump(results, f, ensure_ascii=False, indent=2)
 
